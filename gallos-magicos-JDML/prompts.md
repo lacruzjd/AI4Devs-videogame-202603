@@ -1098,9 +1098,6 @@ Se rediseñó completamente la función `drawRooster` en `js/characters.js` mant
 
 El diseño sigue siendo completamente compatible con todos los `PLAYER_EXTRAS` y `ENEMY_EXTRAS` existentes, ya que los accesorios se dibujan en el mismo espacio de coordenadas locales.
 
-## Prompt 27
-
----
 
 ## Prompt 27
 
