@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gallos Mágicos – Torneo del Maíz Dorado</title>
+  <!--
+    ============================================================
+    GALLOS MÁGICOS – TORNEO DEL MAÍZ DORADO
+    Estructura modular (Prompt 19)
+    ============================================================
+    gallos-magicos/
+    ├── index.html          ← este archivo: canvas, HUD y carga de scripts
+    ├── css/
+    │   └── style.css       ← estilos visuales, animaciones y layout
+    ├── js/
+    │   ├── characters.js   ← gallos, transformaciones y dibujo
+    │   ├── scenes.js       ← escenarios, fondos y decoración
+    │   ├── mechanics.js    ← combate, puntuación y balance
+    │   ├── hud.js          ← HUD, botones y pantallas especiales
+    │   └── main.js         ← estado global, game loop e inputs
+    └── assets/             ← imágenes, fuentes y sonidos (extensible)
+    ============================================================
+    CONTROLES
+      Q  · Picotazo (disponible desde el inicio)
+      W  · Llamarada Disco (desbloqueado en etapa 2)
+      E  · Soplido Inflador (desbloqueado en etapa 3)
+      R  · Rayo Guitarra    (desbloqueado en etapa 4)
+      T  · Trampa Espigas   (desbloqueado en etapa 5)
+      Y  · ¡ULTRA CONFETI!  (forma final)
+      También puedes hacer click en los botones de la pantalla.
+    ============================================================
+  -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- Canvas principal donde se renderiza todo el juego -->
+  <canvas id="gameCanvas" width="800" height="490"></canvas>
+
+  <!-- Panel de habilidades: generado dinámicamente por hud.js/buildSkillButtons -->
+  <div id="skills-panel"></div>
+
+  <!-- Barra de mensajes de combate: actualizada por mechanics.js/addMsg -->
+  <div id="msg-bar"></div>
+
+  <!--
+    ORDEN DE CARGA DE SCRIPTS (importante: dependencias antes que consumidores)
+    ─────────────────────────────────────────────────────────────────────────────
+    characters.js  → define TRANSFORMS, PARTICLE_COLORS, drawRooster, etc.
+    scenes.js      → define STAGES, drawBackground, drawSceneDecor, etc.
+    sounds.js      → define SFX (sistema de sonido procedural, Web Audio API)
+    mechanics.js   → define BALANCE y lógica de combate; usa los anteriores
+    hud.js         → define HUD y pantallas; usa todos los anteriores
+    main.js        → define STATE, canvas, ctx y el game loop; usa todo lo anterior
+    ─────────────────────────────────────────────────────────────────────────────
+    Todos los scripts comparten el ámbito global del navegador (sin ES Modules),
+    lo que permite cargarlos como archivos separados y abrirlos con file://.
+  -->
+  <script src="js/characters.js"></script>
+  <script src="js/scenes.js"></script>
+  <script src="js/sounds.js"></script>
+  <script src="js/mechanics.js"></script>
+  <script src="js/hud.js"></script>
+  <script src="js/main.js"></script>
+
+  <!-- ============================================================
+       MANUAL DEL JUGADOR
+       ============================================================ -->
+  <div id="manual-toggle-wrap">
+    <button id="manual-toggle" onclick="
+      const m = document.getElementById('manual');
+      const open = m.classList.toggle('manual-open');
+      this.textContent = open ? '📖 Manual del Jugador ▲' : '📖 Manual del Jugador ▼';
+    ">📖 Manual del Jugador ▼</button>
+  </div>
+
+  <div id="manual">
+    <div class="manual-inner">
+
+      <!-- HISTORIA -->
+      <section class="m-section">
+        <h2 class="m-title">🐔 La Leyenda del Torneo</h2>
+        <p class="m-text">
+          En el corazón de las tierras mágicas existe el <strong>Torneo del Maíz Dorado</strong>,
+          la competición más absurda y espectacular del universo avícola. Un gallo ordinario —
+          <em>tú</em> — ha sido elegido para demostrar que el talento, el humor y el estilo
+          valen más que el puro músculo. Derrota a cinco rivales legendarios, absorbe sus poderes
+          y aspira al título de <strong>Gran Maestro del Desayuno</strong>.
+        </p>
+      </section>
+
+      <!-- CONTROLES -->
+      <section class="m-section">
+        <h2 class="m-title">🎮 Controles</h2>
+        <div class="m-grid-2">
+          <div class="m-card">
+            <h3 class="m-card-title">⌨️ Teclado</h3>
+            <table class="m-table">
+              <tr><td class="key">Q</td><td>Picotazo</td><td class="note">Disponible desde el inicio</td></tr>
+              <tr><td class="key">W</td><td>Llamarada Disco</td><td class="note">Se desbloquea en etapa 2</td></tr>
+              <tr><td class="key">E</td><td>Soplido Inflador</td><td class="note">Se desbloquea en etapa 3</td></tr>
+              <tr><td class="key">R</td><td>Rayo Guitarra</td><td class="note">Se desbloquea en etapa 4</td></tr>
+              <tr><td class="key">T</td><td>Trampa Espigas</td><td class="note">Se desbloquea en etapa 5</td></tr>
+              <tr><td class="key">Y</td><td>¡ULTRA CONFETI!</td><td class="note">Forma final</td></tr>
+            </table>
+          </div>
+          <div class="m-card">
+            <h3 class="m-card-title">🖱️ Ratón / Pantalla</h3>
+            <ul class="m-list">
+              <li><span class="m-hl">Clic en el canvas</span> → Recoge premios que caen durante el combate.</li>
+              <li><span class="m-hl">Clic en botones</span> → Alternativa a las teclas para atacar.</li>
+              <li><span class="m-hl">Clic / cualquier tecla</span> → Confirmar en pantallas de título, victoria y derrota.</li>
+              <li><span class="m-hl">ESC</span> en pantalla de derrota → Volver al título sin entrenar.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- COMBATE -->
+      <section class="m-section">
+        <h2 class="m-title">⚔️ Sistema de Combate</h2>
+        <div class="m-grid-3">
+          <div class="m-card">
+            <h3 class="m-card-title">❤️ Energía</h3>
+            <p class="m-text">Cada combatiente empieza con <strong>100 puntos de Energía</strong>.
+            Cuando la Energía del rival llega a 0, ganas la batalla.
+            Si la tuya llega a 0, ves la pantalla de derrota.</p>
+          </div>
+          <div class="m-card">
+            <h3 class="m-card-title">⏱️ Cooldown</h3>
+            <p class="m-text">Cada habilidad tiene un tiempo de recarga (CD).
+            La barra azul en el botón muestra el progreso; cuando dice
+            <em>"¡Listo!"</em> puedes volver a usarla.</p>
+          </div>
+          <div class="m-card">
+            <h3 class="m-card-title">🤖 Rival Autónomo</h3>
+            <p class="m-text">El rival ataca solo a intervalos regulares.
+            Cada escenario aumenta la frecuencia y el daño de sus ataques,
+            así que la urgencia crece conforme avanzas.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ESPECTÁCULO -->
+      <section class="m-section">
+        <h2 class="m-title">🌟 Sistema de Espectáculo</h2>
+        <p class="m-text m-mb">
+          El público puntúa tu actuación mediante dos barras: <strong>Humor</strong> 😂 y <strong>Estilo</strong> ✨.
+          Cuanto más combinados, mayor es el multiplicador de daño de tus ataques.
+        </p>
+        <div class="m-grid-3">
+          <div class="m-card m-card-gold">
+            <div class="m-badge">Humor + Estilo &gt; 100</div>
+            <p class="m-card-title">Espectáculo ×1.5</p>
+            <p class="m-text">Todos tus ataques hacen un 50 % más de daño.</p>
+          </div>
+          <div class="m-card m-card-pink">
+            <div class="m-badge">Humor + Estilo &gt; 150</div>
+            <p class="m-card-title">Espectáculo ×2.0</p>
+            <p class="m-text">Daño duplicado. El Gallo Arcoíris Supremo alcanza ×2.5.</p>
+          </div>
+          <div class="m-card m-card-rainbow">
+            <div class="m-badge">Humor + Estilo ≥ 200</div>
+            <p class="m-card-title">¡Victoria por Espectáculo!</p>
+            <p class="m-text">El público enloquece y declara victoria automática sin importar la Energía restante.</p>
+          </div>
+        </div>
+
+        <h3 class="m-subtitle">Cómo ganar / perder puntos de Espectáculo</h3>
+        <div class="m-grid-2">
+          <div class="m-card m-card-green">
+            <h3 class="m-card-title">👏 Bonus</h3>
+            <ul class="m-list">
+              <li>Usar una habilidad <em>diferente</em> a la anterior → <strong>+6 Humor</strong> (ovación).</li>
+              <li>Usar 3 habilidades distintas seguidas → <strong>+12 Estilo</strong> (¡Combo ×3!).</li>
+              <li>Obtener una nueva transformación → <strong>+15 Estilo</strong>.</li>
+              <li>Cada habilidad suma sus propios valores de Humor y Estilo al impactar.</li>
+            </ul>
+          </div>
+          <div class="m-card m-card-red">
+            <h3 class="m-card-title">🍅 Penalizaciones</h3>
+            <ul class="m-list">
+              <li>Repetir la misma habilidad dos veces seguidas → <strong>−5 Humor</strong> y <strong>−10 Estilo</strong>.</li>
+              <li>El rival te golpea → no afecta Espectáculo, pero reduces Energía.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- TRANSFORMACIONES -->
+      <section class="m-section">
+        <h2 class="m-title">✨ Transformaciones del Jugador</h2>
+        <p class="m-text m-mb">Cada vez que superas un escenario absorbes el poder del rival y evoluciones.</p>
+        <div class="m-transforms">
+          <div class="m-tr-card" style="--c:#F5F5DC">
+            <span class="m-tr-num">0</span>
+            <strong>Gallo Básico</strong>
+            <span class="m-tr-skills">🐔 Picotazo</span>
+          </div>
+          <div class="m-tr-card" style="--c:#FF4500">
+            <span class="m-tr-num">1</span>
+            <strong>Gallo Llamas Disco</strong>
+            <span class="m-tr-skills">🐔 🔥</span>
+          </div>
+          <div class="m-tr-card" style="--c:#4169E1">
+            <span class="m-tr-num">2</span>
+            <strong>Gallo Globo</strong>
+            <span class="m-tr-skills">🐔 🔥 💨</span>
+          </div>
+          <div class="m-tr-card" style="--c:#FFD700">
+            <span class="m-tr-num">3</span>
+            <strong>Gallo Punk Eléctrico</strong>
+            <span class="m-tr-skills">🐔 🔥 💨 ⚡</span>
+          </div>
+          <div class="m-tr-card" style="--c:#388E3C">
+            <span class="m-tr-num">4</span>
+            <strong>Gallo Espiga Dorada</strong>
+            <span class="m-tr-skills">🐔 🔥 💨 ⚡ 🌽</span>
+          </div>
+          <div class="m-tr-card m-tr-final" style="--c:#E91E63">
+            <span class="m-tr-num">5</span>
+            <strong>Gallo Arcoíris Supremo 🏆</strong>
+            <span class="m-tr-skills">🐔 🔥 💨 ⚡ 🌽 🎉</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ESCENARIOS Y RIVALES -->
+      <section class="m-section">
+        <h2 class="m-title">🗺️ Escenarios y Rivales</h2>
+        <div class="m-stages">
+          <div class="m-stage-card">
+            <span class="m-stage-num">Etapa 1</span>
+            <strong>Granero Encantado</strong>
+            <span class="m-enemy">vs 🔥 Gallo de Fuego</span>
+            <span class="m-tip">Rival lento · Aprende los controles aquí.</span>
+          </div>
+          <div class="m-stage-card">
+            <span class="m-stage-num">Etapa 2</span>
+            <strong>Volcán de Palomitas</strong>
+            <span class="m-enemy">vs 💨 Gallo de Viento</span>
+            <span class="m-tip">Ataca con variedad para maximizar el Humor.</span>
+          </div>
+          <div class="m-stage-card">
+            <span class="m-stage-num">Etapa 3</span>
+            <strong>Bosque de Huevos Gigantes</strong>
+            <span class="m-enemy">vs ⚡ Gallo Trueno</span>
+            <span class="m-tip">Ejecuta combos ×3 para acumular Estilo rápido.</span>
+          </div>
+          <div class="m-stage-card m-stage-danger">
+            <span class="m-stage-num">Etapa 4 ⚠️</span>
+            <strong>Arena de Patos Fans</strong>
+            <span class="m-enemy">vs 🌽 Gallo Tierra</span>
+            <span class="m-tip">¡Aparecen cuervos ladrones! Recoge los premios rápido.</span>
+          </div>
+          <div class="m-stage-card m-stage-final">
+            <span class="m-stage-num">Etapa 5 🏆</span>
+            <strong>Templo del Maíz Dorado</strong>
+            <span class="m-enemy">vs 🎉 Rival Supremo</span>
+            <span class="m-tip">El rival más rápido del torneo. Apunta a la victoria por Espectáculo.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- PREMIOS -->
+      <section class="m-section">
+        <h2 class="m-title">🎁 Premios del Público</h2>
+        <p class="m-text m-mb">Durante el combate el público lanza premios al arena. <strong>Haz clic sobre ellos</strong> antes de que desaparezcan para recuperar Energía.</p>
+        <div class="m-prizes">
+          <div class="m-prize-card" style="--pc:#F9A825">
+            <span class="m-prize-icon">🌽</span>
+            <strong>Maíz Pequeño</strong>
+            <span class="m-prize-stat">+10 Energía</span>
+            <span class="m-prize-rate">Frecuente (50 %)</span>
+          </div>
+          <div class="m-prize-card" style="--pc:#FF8F00">
+            <span class="m-prize-icon">🍿</span>
+            <strong>Palomitas Mágicas</strong>
+            <span class="m-prize-stat">+20 Energía</span>
+            <span class="m-prize-rate">Común (30 %)</span>
+          </div>
+          <div class="m-prize-card" style="--pc:#FFD700">
+            <span class="m-prize-icon">🥚</span>
+            <strong>Huevo Dorado</strong>
+            <span class="m-prize-stat">+40 Energía</span>
+            <span class="m-prize-rate">Raro (15 %)</span>
+          </div>
+          <div class="m-prize-card m-prize-special" style="--pc:#E91E63">
+            <span class="m-prize-icon">🎉</span>
+            <strong>¡Confeti Arcoíris!</strong>
+            <span class="m-prize-stat">+100 Energía · +20 Humor</span>
+            <span class="m-prize-rate">Muy raro (5 %)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- CUERVOS -->
+      <section class="m-section">
+        <h2 class="m-title">🐦 Cuervos Ladrones</h2>
+        <div class="m-grid-2">
+          <div>
+            <p class="m-text">A partir de la <strong>Etapa 4</strong> aparecen cuervos oscuros con ojos naranjas
+            que vuelan hacia los premios y los roban antes de que puedas recogerlos.</p>
+            <ul class="m-list m-mt">
+              <li>Un indicador <strong>⚠️</strong> parpadeante señala el premio en peligro.</li>
+              <li>Si el cuervo llega al premio, lo atrapa y huye fuera de pantalla.</li>
+              <li>En la <strong>Etapa 5</strong> los cuervos son más rápidos y más frecuentes.</li>
+              <li><strong>Estrategia:</strong> recoge los premios en cuanto aparezcan; no los dejes en el suelo.</li>
+            </ul>
+          </div>
+          <div class="m-thief-box">
+            <div class="m-thief-visual">🐦</div>
+            <p class="m-text" style="text-align:center;font-size:11px;color:#FF6B6B">
+              ¡El cuervo robó tu 🥚!
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ENTRENAMIENTO -->
+      <section class="m-section">
+        <h2 class="m-title">🥊 Entrenamiento Mágico</h2>
+        <p class="m-text m-mb">
+          Si pierdes una batalla, el <strong>Gallo Maestro</strong> te invita a su Corral Mágico
+          para una sesión de entrenamiento de 30 segundos. Haz clic en los objetivos 🎯 que
+          aparezcan para acumular aciertos y ganar bonuses aplicados a la siguiente batalla.
+        </p>
+        <div class="m-grid-3">
+          <div class="m-card m-card-bronze">
+            <div class="m-badge">0 – 3 aciertos ★</div>
+            <p class="m-text">+10 Humor · +5 Estilo</p>
+          </div>
+          <div class="m-card m-card-silver">
+            <div class="m-badge">4 – 6 aciertos ★★</div>
+            <p class="m-text">+20 Humor · +10 Estilo</p>
+          </div>
+          <div class="m-card m-card-gold">
+            <div class="m-badge">7+ aciertos ★★★</div>
+            <p class="m-text">+30 Humor · +20 Estilo</p>
+          </div>
+        </div>
+        <p class="m-text m-mt" style="font-size:11px;color:#9E9E9E">
+          Pulsa ESC en la pantalla de derrota para volver al título y saltarte el entrenamiento.
+        </p>
+      </section>
+
+      <!-- CONSEJOS -->
+      <section class="m-section">
+        <h2 class="m-title">💡 Consejos del Gallo Maestro</h2>
+        <ul class="m-tips-list">
+          <li>🔄 <strong>Varía tus ataques</strong> — el público premia la variedad con ovaciones (+6 Humor). Repetir la misma habilidad llueve tomates.</li>
+          <li>🌟 <strong>Combo ×3</strong> — usa 3 habilidades distintas consecutivas para un bonus de +12 Estilo de golpe.</li>
+          <li>⚡ <strong>Prioriza el Espectáculo</strong> — llegar a ×2.0 de daño transforma un rival duro en un rival trivial.</li>
+          <li>🎁 <strong>Recoge premios</strong> — un Confeti Arcoíris a tiempo puede darte la vuelta a una batalla perdida.</li>
+          <li>🐦 <strong>Cuidado con los cuervos</strong> en etapas 4 y 5: el Huevo Dorado y el Confeti son sus blancos favoritos.</li>
+          <li>🥊 <strong>Entrena bien</strong> — un buen entrenamiento post-derrota te da hasta +30 Humor y +20 Estilo de ventaja.</li>
+          <li>🏆 <strong>Meta suprema</strong>: acumula 200 pts de Espectáculo para una victoria instantánea sin importar la Energía del rival.</li>
+        </ul>
+      </section>
+
+    </div><!-- /.manual-inner -->
+  </div><!-- /#manual -->
+
+</body>
+</html>
